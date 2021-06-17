@@ -1,4 +1,4 @@
-# Revving Infra deployment from CloudFomation and configuration from ansible.
+## Revving Infra deployment from CloudFomation and configuration from ansible.
 
 ## Deployment using Cloudformation stack
 
@@ -27,4 +27,4 @@ This playbooks configures React JS apps as frontend and Django app as backend.
 * Setup backend app.
 * Set up the server to serve the client.
 
-### **Note:**  ** Don't forgot to edit the email address, domain names and git repo links.**
+### **Note:**  Don't forgot to edit the email address, domain names and git repo links.
