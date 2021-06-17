@@ -1,0 +1,52 @@
+---
+- hosts: tag_Name_Backend
+  vars:
+    group_name: devuser
+    user_name: devuser
+    src_dir_name: backend
+    letsencrypt_keys_dir: /etc/letsencrypt/keys
+    letsencrypt_certs_dir: /etc/letsencrypt/certs
+    project_path: "/home/{{ user_name }}/{{ src_dir_name }}/{{ src_dir_name }}"
+    virtualenv_path: "/home/{{ user_name }}/{{ src_dir_name }}/env"
+    app_name: pricing_engine
+    domain_name: backend.example.com
+    app_port: 8000
+  tasks:
+  - name: copy gunicorn socket file
+    copy:
+      src: ../files/gunicorn.socket
+      dest: "/etc/systemd/system/gunicorn.socket"
+
+  - name: create gunicorn daemon file
+    template:
+      src: ../templates/gunicorn.service
+      dest: "/etc/systemd/system/gunicorn.service"
+
+  - name: restart and enable service gunicorn, and daemon-reload to pick up config changes
+    systemd:
+      state: restarted
+      enabled: yes
+      daemon_reload: yes
+      name: gunicorn
+
+  - name: "copy the nginx config file for {{ domain_name }}"
+    template:
+      src: ../templates/django.conf
+      dest: /etc/nginx/sites-available/{{ domain_name }}.cfg
+
+  - name: remove default symlink
+    file:
+      path: /etc/nginx/sites-enabled/default
+      state: absent
+
+  - name: create symlinks
+    file:
+      src: /etc/nginx/sites-available/{{ domain_name }}.cfg
+      dest: /etc/nginx/sites-enabled/{{ domain_name }}
+      state: link
+
+  - name: nginx_reload
+    service:
+      name: nginx
+      state: reloaded
+

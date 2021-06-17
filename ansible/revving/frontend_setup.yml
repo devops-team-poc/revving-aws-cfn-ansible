@@ -1,0 +1,23 @@
+---
+- include: ./playbooks/nginx_with_SSl.yml
+  vars:
+    domain_name: "domain1.com"
+    acme_email: "example.com"
+
+- include: ./playbooks/nginx_with_SSl.yml
+  vars:
+    domain_name: "domain2.com"
+    acme_email: "example.com"
+
+- include: ./playbooks/user_env.yaml
+
+- include: ./playbooks/install_node_yarn.yml
+
+- include: ./playbooks/clone_dirs.yml
+
+- include: ./playbooks/run_yarn.yml
+
+- include: ./playbooks/server_setup.yml
+  vars:
+    domain_name1: "domain1.com"
+    domain_name2: "domain2.com"

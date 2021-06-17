@@ -1,0 +1,11 @@
+[Unit]
+Description=starting yarn
+
+[Service]
+User=root
+WorkingDirectory=/home/{{ user_name }}/{{ workdir }}
+ExecStart=/usr/bin/yarn start
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

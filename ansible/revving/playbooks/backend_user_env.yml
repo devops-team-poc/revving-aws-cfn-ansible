@@ -1,0 +1,35 @@
+---
+- hosts: tag_Name_Backend
+  vars:
+    group: devuser
+    user_name: devuser
+  tasks:
+  - name: Add group "{{ group }}" to remote server
+    group:
+      name: "{{ group }}"
+      state: present
+
+  - name: Add user "{{ user_name }}"
+    user:
+      name: "{{ user_name }}"
+      comment: "Privileged User"
+      groups: "{{ group }}"
+      append: yes
+      shell: /bin/bash
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: ".ssh/{{ user_name }}"
+    register: new_user
+
+  - name: Set up authorized keys for the "{{ user_name }}" user
+    authorized_key:
+      user: "{{ user_name }}"
+      state: present
+      key: "{{ new_user.ssh_public_key }}"
+
+  - name: Allow "{{ group }}" group to have passwordless sudo
+    lineinfile:
+      dest: /etc/sudoers
+      insertafter: root
+      line: '%{{ group }} ALL=(ALL) NOPASSWD: ALL'
+

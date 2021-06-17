@@ -1,0 +1,26 @@
+---
+- hosts: tag_Name_frontend
+  vars:
+    group_name: devuser
+    user_name: devuser
+    repo_user: <your_username>
+    repo_pass: <your_pass>
+    src_repos_name:
+      - frontend_src
+      - frontend_client_src
+  tasks:
+  - name: clone repositories
+    git:
+      repo: "https://{{ repo_user }}:{{ repo_pass }}@bitbucket.org/Arix_J/{{ item }}.git"
+      dest: "/home/{{ user_name }}/{{ item }}"
+    with_items: "{{ src_repos_name }}"
+
+  - name: Change ownership of dirs
+    file:
+      path: "/home/{{ user_name }}/{{ item }}"
+      state: directory
+      owner: "{{ user_name }}"
+      group: "{{ group_name }}"
+      mode: 0755
+      recurse: yes
+    loop: "{{ src_repos_name }}"

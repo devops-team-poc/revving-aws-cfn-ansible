@@ -1,0 +1,21 @@
+---
+- hosts: tag_Name_frontend
+  vars:
+    group_name: devuser
+    user_name: devuser
+    src_repos_name:
+      - frontend_client_src
+      - frontend_src
+  tasks:
+  - name: Install packages based on package.json.
+    yarn:
+      path: "/home/{{ user_name }}/{{ item }}"
+    with_items:
+      - "{{ src_repos_name }}"
+
+  - name: Build project
+    command: yarn build
+    args:
+      chdir: "/home/{{ user_name }}/{{ item }}"
+    with_items:
+      - "{{ src_repos_name }}"

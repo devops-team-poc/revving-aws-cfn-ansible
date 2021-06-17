@@ -1,0 +1,15 @@
+---
+- include: ./playbooks/backend_nginx_with_SSl.yml
+  vars:
+    domain_name: "backend.domain.com"
+    acme_email: "coderarix@gmail.com"
+
+- include: ./playbooks/backend_user_env.yml
+
+- include: ./playbooks/backend_installation.yml
+
+- include: ./playbooks/backend_app_setup.yml
+
+- include: ./playbooks/backend_server_setup.yml
+  vars:
+    domain_name: "backend.domain.com"

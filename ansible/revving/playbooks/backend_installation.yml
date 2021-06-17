@@ -1,0 +1,29 @@
+---
+- hosts: tag_Name_Backend
+  vars:
+    group_name: devuser
+    user_name: devuser
+    src_dir_name: backend
+    project_path: "/home/{{ user_name }}/{{ src_dir_name }}"
+  tasks:
+  - name: Add deadsnakes team new Python Versions PPA to the apt sources list
+    apt_repository:
+      repo: 'ppa:deadsnakes/ppa'
+      update_cache: yes
+      state: present
+
+  - name: Install additional packages
+    apt:
+      update_cache: yes
+      state: present
+      name:
+        - software-properties-common
+        - python3.8
+        - python3-pip
+        - supervisor
+            
+  - name: Ensure the Supervisor service is running
+    service:
+      name: supervisor
+      state: started
+      enabled: yes

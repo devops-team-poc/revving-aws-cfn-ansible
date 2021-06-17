@@ -1,0 +1,36 @@
+---
+- hosts: tag_Name_frontend
+  tasks:
+  - name: install nodejs prerequisites
+    apt:
+      name:
+        - apt-transport-https
+        - gcc
+        - g++
+        - make
+      state: present
+
+  - name: Add nodejs and yarn apt key
+    apt_key:
+      url: "{{ item }}"
+      state: present
+    loop:
+      - https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+      - https://dl.yarnpkg.com/debian/pubkey.gpg
+
+  - name: Add nodejs and yarn repository
+    apt_repository:
+      repo: "{{ item }}"
+      state: present
+      update_cache: yes
+    loop:
+      - "deb https://deb.nodesource.com/node_14.x {{ ansible_lsb.codename }} main"
+      - "deb https://dl.yarnpkg.com/debian/ stable main"
+  - name: Install nodejs and yarn
+    apt:
+      name: "{{ item }}"
+      state: present
+    loop:
+     - nodejs
+     - yarn
+

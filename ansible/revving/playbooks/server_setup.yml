@@ -1,0 +1,71 @@
+---
+- hosts: tag_Name_frontend
+  vars:
+    group: devuser
+    user_name: devuser
+    src_repos_name:
+      - frontend_src
+      - frontend_client_src
+    letsencrypt_keys_dir: /etc/letsencrypt/keys
+    letsencrypt_certs_dir: /etc/letsencrypt/certs
+    domain_name1: "example1.com"
+    domain_name2: "example2.com"
+  tasks:
+  - name: "create yarn daemon file for {{ src_repos_name.0 }}"
+    template:
+      src: ../templates/yarn.service
+      dest: "/etc/systemd/system/yarn_{{ src_repos_name.0 }}.service"
+    vars:
+      workdir: "{{ src_repos_name.0 }}"
+
+  - name: "create yarn daemon file for {{ src_repos_name.1 }}"
+    template:
+      src: ../templates/yarn.service
+      dest: "/etc/systemd/system/yarn_{{ src_repos_name.1 }}.service"
+    vars:
+      workdir: "{{ src_repos_name.1 }}"
+
+  - name: restart and enable service yarn, and daemon-reload to pick up config changes
+    systemd:
+      state: restarted
+      enabled: yes
+      daemon_reload: yes
+      name: "yarn_{{ item }}"
+    with_items: "{{ src_repos_name }}"
+
+  - name: "copy the nginx config file for {{ domain_name }}"
+    template:
+      src: ../templates/domain.conf
+      dest: /etc/nginx/sites-available/{{ domain_name }}.cfg
+    vars:
+      domain_name: "{{ domain_name1 }}"
+      port: 3000
+      app_dir_name: "{{ src_repos_name.0 }}"
+
+  - name: "copy the nginx config file for {{ domain_name }}"
+    template:
+      src: ../templates/domain.conf
+      dest: /etc/nginx/sites-available/{{ domain_name }}.cfg
+    vars:
+      domain_name: "{{ domain_name2 }}"
+      port: 3001
+      app_dir_name: "{{ src_repos_name.1 }}"
+
+  - name: remove default symlink
+    file:
+      path: /etc/nginx/sites-enabled/default
+      state: absent
+
+  - name: create symlinks
+    file:
+      src: /etc/nginx/sites-available/{{ item }}.cfg
+      dest: /etc/nginx/sites-enabled/{{ item }}
+      state: link
+    loop:
+      - "{{ domain_name1 }}"
+      - "{{ domain_name2 }}"
+
+  - name: nginx_reload
+    service:
+      name: nginx
+      state: reloaded

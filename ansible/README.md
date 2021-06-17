@@ -1,16 +1,7 @@
-# Revving Infra deployment from CloudFomation and configuration from ansible.
-
-## Deployment using Cloudformation stack
-
-* newInfra template deploys the whole infrastructure from AWS VPC (network) to public and private subnets, security grops, ec2 instances and RDS DB.
-
-* elasticCacheDynamic template deploys the redis cluster for caching.
-
-
-## Ansible Configration for React JS and Django
+# Ansible Configration for React JS and Django
 This playbooks configures React JS apps as frontend and Django app as backend.
 
-### Front end Setup Steps
+## Front end Setup Steps
 
 * Configure Nginx server with Let's encrypt SSL.
 * Configure a separate user for code management.
@@ -19,7 +10,7 @@ This playbooks configures React JS apps as frontend and Django app as backend.
 * Build and run yarn.
 * Set up the server to serve the client.
 
-### Back end Setup Steps
+## Back end Setup Steps
 
 * Configure Nginx server with Let's encrypt SSL.
 * Configure a separate user for code management.

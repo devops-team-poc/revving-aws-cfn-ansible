@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  CloudFormation template for creating the resources needed to deploy an ElastiCache cluster in AWS.
+  It creates the a Security Group with ingress rules, an ElastiCache Subnet Group for the cache cluster,
+  and the ElastiCache cluster itself.
+
+Parameters:
+  Environment:
+    Description: An environment name that will be prefixed to resource names.
+    Type: String
+    AllowedValues:
+      - dev
+      - uat
+      - prod
+    ConstraintDescription: Can only be "dev/uat/prod"
+    Default: dev
+
+  VpcId:
+    Type: 'AWS::EC2::VPC::Id'
+    Description: VpcId of your existing Virtual Private Cloud (VPC)
+    ConstraintDescription: must be the VPC Id of an existing Virtual Private Cloud.
+    
+  Subnets:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: The list of SubnetIds in your Virtual Private Cloud (VPC)
+    ConstraintDescription: >-
+      must be a list of at least two existing subnets associated with at least
+      two different availability zones. They should be residing in the selected
+      Virtual Private Cloud.
+
+  ApplicationName:
+    Description: >
+      The name of the application, which will be used to generate the EC cluster name.
+      It will be prefixed with the environment name.
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: "^[a-zA-Z]+[0-9a-zA-Z_-]*$"
+    ConstraintDescription: Must start with a letter. Only numbers, letters, -, and _ accepted. Max. length 64 characters.
+    Default: os-storage
+
+  CacheName:
+    Description: The name of the cache cluster. Will be prefixed with the environment name.
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: "^[a-zA-Z]+[0-9a-zA-Z_-]*$"
+    ConstraintDescription: Must start with a letter. Only numbers, letters, -, and _ accepted. Max. length 64 characters.
+    Default: cache
+
+  CacheEngine:
+    Description: Which caching platform to use. Can be set to 'redis' or 'memcached'.
+    Type: String
+    AllowedValues:
+      - redis
+      - memcached
+    ConstraintDescription: Can only be "redis" or "memcached"
+    Default: redis
+
+  NodeInstanceType:
+    Description: The instance type for redis cache nodes.
+    ConstraintDescription: Must be a valid instance type from the list of allowed values.
+    Default: cache.t2.micro
+    AllowedValues:
+      - cache.m5.large
+      - cache.m5.xlarge
+      - cache.m5.2xlarge
+      - cache.m5.4xlarge
+      - cache.m5.12xlarge
+      - cache.m5.24xlarge
+      - cache.m4.large
+      - cache.m4.xlarge
+      - cache.m4.2xlarge
+      - cache.m4.4xlarge
+      - cache.m4.10xlarge
+      - cache.t2.micro
+      - cache.t2.small
+      - cache.t2.medium
+      - cache.c1.xlarge
+      - cache.r5.large
+      - cache.r5.xlarge
+      - cache.r5.2xlarge
+      - cache.r5.4xlarge
+      - cache.r5.12xlarge
+      - cache.r5.24xlarge
+      - cache.r4.large
+      - cache.r4.xlarge
+      - cache.r4.2xlarge
+      - cache.r4.4xlarge
+      - cache.r4.8xlarge
+      - cache.r4.16xlarge
+    Type: String
+
+  NumberOfCacheNodes:
+    Description: An integer value specifying the number of node in the redis cache.
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 128
+
+Conditions:
+  IsSingleNode: !Equals [ !Ref NumberOfCacheNodes, 1 ]
+
+  IsClustered: !Not [Condition: IsSingleNode]
+
+  IsMemcached: !Equals [ !Ref CacheEngine, memcached ]
+
+  IsRedis: !Equals [ !Ref CacheEngine, redis ]
+
+Resources:
+  ElastiCacheVpcSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${Environment}-${CacheName}-sg"
+      GroupDescription: "This is the security group that all of our ElastiCache cluster will be placed into."
+      VpcId: !Ref VpcId
+
+  ElastiCacheVpcSecurityGroupCodeBuildIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ElastiCacheVpcSecurityGroup
+      IpProtocol: tcp
+      FromPort: "6379"
+      ToPort: "6379"
+      CidrIp: 0.0.0.0/0
+
+  ElastiCacheSubnetGroup:
+    Type: 'AWS::ElastiCache::SubnetGroup'
+    Properties:
+      CacheSubnetGroupName: !Sub ${Environment}-${CacheName}-SubnetGroup
+      Description: Redis cache VPC subnet group.
+      SubnetIds: !Ref Subnets
+
+  ElastiCacheCluster:
+    Type: 'AWS::ElastiCache::CacheCluster'
+    DependsOn: ElastiCacheSubnetGroup
+    Properties:
+      AutoMinorVersionUpgrade: 'false'
+      AZMode: single-az # this parameter only affects Memcached clusters
+      Engine: !Ref CacheEngine
+      CacheNodeType: !Ref NodeInstanceType
+      NumCacheNodes: !Ref NumberOfCacheNodes
+      ClusterName: !Sub ${Environment}-${CacheName}
+      CacheSubnetGroupName: !Ref ElastiCacheSubnetGroup
+      VpcSecurityGroupIds:
+        - Ref: ElastiCacheVpcSecurityGroup
+
+Outputs:
+  # Redis (cluster mode disabled) replication groups don't have this attribute.
+  # Therefore, Fn::GetAtt returns a value for this attribute only if the replication
+  # group is clustered. Otherwise, Fn::GetAtt fails.
+  ElastiCacheConfigurationEndpointUrl:
+    Description: The configuration endpoint URL of the cache node.
+    Value: !GetAtt ElastiCacheCluster.ConfigurationEndpoint.Address
+    Condition: IsClustered
+    Export:
+      Name: !Sub ${Environment}-${CacheName}-ElastiCacheConfigurationEndpointUrl
+
+  # This output is only applicable if the cache engine is set to Memcached
+  MemcachedConfigurationEndpointPort:
+    Description: The Memcached configuration endpoint port of the cache node.
+    Value: !GetAtt ElastiCacheCluster.ConfigurationEndpoint.Port
+    Condition: IsMemcached
+    Export:
+      Name: !Sub ${Environment}-${CacheName}-MemcachedConfigurationEndpointPort
+
+  # This output is only applicable if the cache engine is set to Redis
+  RedisEndpointAddress:
+    Description: The Redis endpoint address of the cache.
+    Value: !GetAtt ElastiCacheCluster.RedisEndpoint.Address
+    Condition: IsRedis
+    Export:
+      Name: !Sub ${Environment}-${CacheName}-RedisEndpointAddress
+
+  # This output is only applicable if the cache engine is set to Redis
+  RedisEndpointPort:
+    Description: The Redis endpoint port of the cache.
+    Value: !GetAtt ElastiCacheCluster.RedisEndpoint.Port
+    Condition: IsRedis
+    Export:
+      Name: !Sub ${Environment}-${CacheName}-RedisEndpointPort
+

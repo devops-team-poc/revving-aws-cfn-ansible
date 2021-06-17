@@ -1,0 +1,57 @@
+image:
+  name: python:3.7
+
+start: &start
+  step:
+    name: Hello World
+    script:
+      - echo "Hello From Bit Bucket!"
+
+infra: &infra
+  step:
+    name: Setup from CloudFormation
+    trigger: manual
+    script:
+      - pipe: atlassian/aws-cloudformation-deploy:0.10.0
+        variables:
+          AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+          AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+          STACK_NAME: 'aws-cloudformation-deploy-ci-infra'
+          TEMPLATE: './revving_infra_templates/newInfra.yml'
+          WAIT: 'true'
+
+redis: &redis
+  step:
+    name: Setup redis cluster
+    trigger: manual
+    caches:
+      - pip
+    script:
+      - pip install awscli
+      - export VPC=`aws cloudformation describe-stacks --stack-name aws-cloudformation-deploy-ci-infra --query "Stacks[0].Outputs[?OutputKey=='VPC'].OutputValue" --output text`
+      - export PrivateSubnetA=`aws cloudformation describe-stacks --stack-name aws-cloudformation-deploy-ci-infra --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetA'].OutputValue" --output text`
+      - export PrivateSubnetB=`aws cloudformation describe-stacks --stack-name aws-cloudformation-deploy-ci-infra --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetB'].OutputValue" --output text`
+      - pipe: atlassian/aws-cloudformation-deploy:0.10.0
+        variables:
+          AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+          AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+          STACK_NAME: 'aws-cloudformation-deploy-ci-redis'
+          TEMPLATE: "./revving_infra_templates/elasticCacheDynamic.yml"
+          WAIT: 'true'
+          STACK_PARAMETERS: >
+              [{
+                "ParameterKey": "VpcId",
+                "ParameterValue": "${VPC}"
+              },
+              {
+                "ParameterKey": "Subnets",
+                "ParameterValue": "${PrivateSubnetA}"
+              }]
+
+pipelines:
+  default:
+    - <<: *start
+    - <<: *infra
+    - <<: *redis
